@@ -656,19 +656,12 @@ class BipartiteGraphConvolution(torch_geometric.nn.MessagePassing):
 
 
 def group_value_indices(x: torch.Tensor):
-    """
-    输入: 任意形状的整型/浮点型 torch.Tensor
-    输出: [[value, [indices]], ...]
-         其中 indices 是按扁平化后一维下标（0 基）。
-         分组顺序按 value 在 x 中的首次出现顺序。
-    """
+
     x = x.flatten()
-    # 保留首次出现顺序
     vals, inv = torch.unique(x, sorted=False, return_inverse=True)
     groups = [[] for _ in range(len(vals))]
     for idx, gid in enumerate(inv.tolist()):
         groups[gid].append(idx)
-    # 转成纯 Python 数字，避免后续序列化麻烦
     return [[vals[i].item() if vals[i].numel()==1 else vals[i].tolist(), groups[i]]
             for i in range(len(vals))]
 

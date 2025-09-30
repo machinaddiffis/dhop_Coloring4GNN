@@ -14,10 +14,10 @@ from LP_coloring import *
 
 
 def handle_color_emb(fnm, d, v, c, edge_index):
-    k=2#k染色层
+    k=2#
     #toy graph
     num_v = v.shape[0]
-    num_c = c.shape[0] #variable的数量，constraints的数量
+    num_c = c.shape[0]
 
     col_L, col_R = global_khop_coloring(edge_index, num_v, num_c, k=k)
     color_v = []

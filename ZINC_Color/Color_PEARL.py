@@ -74,33 +74,6 @@ args = parser.parse_args()
 
 name=f"Color_PEARL_seed{args.seed}"
 
-def PE_matrix(A: torch.Tensor, base: int = 1000) -> torch.Tensor:
-    """
-    A: torch.Tensor, shape (nRow, featureD), 每个元素是 [1, 40] 的整数
-    base: 缩放因子，默认 1000
-    返回: torch.FloatTensor, same shape as A
-    """
-    if not torch.is_tensor(A):
-        raise TypeError("A must be a torch.Tensor")
-    if A.dim() != 2:
-        raise ValueError(f"A must be 2D, got shape {tuple(A.shape)}")
-
-    nRow, featureD = A.shape
-    device = A.device
-
-    # 维度指数: 2 * i / D, i=1..D
-    i = torch.arange(1, featureD + 1, device=device, dtype=torch.float32)   # [D]
-    exp = 2.0 * i / float(featureD)                                         # [D]
-
-    # div_term = base ** exp, 然后扩到 [nRow, D]
-    base_f = torch.tensor(float(base), device=device)
-    div_term = torch.pow(base_f, exp).unsqueeze(0).expand(nRow, -1)         # [nRow, D]
-
-    A_f = A.to(torch.float32)
-    even_mask = (A % 2 == 0)
-    # 向量化分支：偶数 -> sin，奇数 -> cos
-    PEs = torch.where(even_mask, torch.sin(A_f / div_term), torch.cos(A_f / div_term))
-    return PEs
 
 def lr_lambda_fn(total_steps: int, warmup: int):
     def _fn(curr: int) -> float:

@@ -20,26 +20,23 @@ def PFs(featureD,J):
     return allPEs
 
 def PE_matrix(A, base=1000):
-    """
-    A: numpy array, shape (420, 32), 每个元素是 [1, 40] 的整数
-    base: 缩放因子，默认 1000，保持和 PFs 一致
-    """
+
     nRow, featureD = A.shape
-    # 构造维度索引矩阵 dimM (nRow, featureD)
+
     dimInd = np.arange(1, featureD + 1)
     dimM = np.tile(dimInd, (nRow, 1))
 
-    # 按 PFs 的公式计算分母 (指数缩放)
+
     div_term = base ** (2 * dimM / featureD)
 
-    # 奇偶 mask
+
     even_mask = (A % 2 == 0)
     odd_mask = ~even_mask
 
-    # 初始化结果矩阵
+
     PEs = np.zeros_like(A, dtype=np.float32)
 
-    # 填充 sin/cos
+
     PEs[even_mask] = np.sin(A[even_mask] / div_term[even_mask])
     PEs[odd_mask]  = np.cos(A[odd_mask]  / div_term[odd_mask])
 

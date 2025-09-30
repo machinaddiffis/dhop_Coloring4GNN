@@ -109,7 +109,7 @@ if __name__ == '__main__':
         os.makedirs(saveDir,exist_ok=True)
         savepath = os.path.join(saveDir,filename+'.mps')
         if os.path.exists(savepath):
-            print(f"文件存在：{savepath}")
+            print(f"fil ex：{savepath}")
             continue
         m = genSMS(filepath)
         m.writeProblem(savepath)
