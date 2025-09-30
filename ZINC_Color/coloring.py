@@ -6,27 +6,18 @@ from torch_geometric.utils import to_undirected
 import torch
 
 def k_hop_random_coloring(g, k: int, seed: int = 0) -> torch.Tensor:
-    """
-    k-hop 随机染色：任意距离 <= k 的两个节点颜色不同。
-    参数：
-        g   : torch_geometric.data.Data，要求含 edge_index
-        k   : int，k-hop
-        seed: 可选随机种子，仅影响染色顺序
-    返回：
-        colors: [num_nodes, 1] 的 LongTensor，颜色从 0 开始
-    """
-    assert k >= 1, "k 至少为 1，不然叫染色只是涂心安。"
+
+    assert k >= 1
     num_nodes = g.num_nodes
     edge_index = to_undirected(g.edge_index, num_nodes=num_nodes)
 
-    # 构建邻接表（无自环）
     neighbors = [set() for _ in range(num_nodes)]
     src, dst = edge_index
     for u, v in zip(src.tolist(), dst.tolist()):
         if u != v:
             neighbors[u].add(v)
 
-    # 预计算每个节点的 <=k-hop 邻域（不含自身）
+
     k_neighbors = [set() for _ in range(num_nodes)]
     for s in range(num_nodes):
         visited = {s}
@@ -41,7 +32,7 @@ def k_hop_random_coloring(g, k: int, seed: int = 0) -> torch.Tensor:
                     k_neighbors[s].add(v)
                     q.append((v, d + 1))
 
-    # 随机顺序 + 贪心着色（选最小可用颜色）
+
     gen = torch.Generator()
     if seed is not None:
         gen.manual_seed(seed)
@@ -67,7 +58,6 @@ def color_count(dataset,hop=2):
             max_color=term_color
     return max_color
 
-# 可选：简单校验函数，出事儿了别怪我没给保险
 
 
 
