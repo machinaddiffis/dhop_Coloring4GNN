@@ -56,7 +56,8 @@ pip install ogb==1.3.6
 
 **LP**: - generate data by running:
 ```
-python 1generate.py
+python 1generate_pr.py
+python 1generate_wa.py
 ```
 
 **ZINC**: The dataset artifacts are created automatically when you launch the training script.
@@ -130,5 +131,4 @@ Per-seed training logs are saved as:
 Color_PEARL_seed{i}_train_log.pkl
 ```
 where {i} is the seed index you used.
-
 
