@@ -1,8 +1,5 @@
 # Feature Augmentation of GNNs for ILPs: Local Uniqueness Suffices
 
-This repository contains the code for the paper:
-
-Feature Augmentation of GNNs for ILPs: Local Uniqueness Suffices [https://arxiv.org/abs/2509.21000](https://arxiv.org/abs/2509.21000)]]
 
 We provide implementations and scripts for three tasks/datasets:
 
@@ -134,15 +131,4 @@ Color_PEARL_seed{i}_train_log.pkl
 ```
 where {i} is the seed index you used.
 
-## **Citation**
-If you find this repository or the paper useful, please cite:
-@article{han2025feature,
-  title={Feature Augmentation of GNNs for ILPs: Local Uniqueness Suffices},
-  author={Han, Qingyu and Li, Qian and Yang, Linxin and Chen, Qian and Shi, Qingjiang and Sun, Ruoyu},
-  journal={arXiv preprint arXiv:2509.21000},
-  year={2025}
-}
 
-## **Acknowledgements**
-We thank the maintainers of the open-source libraries and datasets used in this work.
-This repository is built on top of [GNNs_Sym_ILPs](https://github.com/NetSysOpt/GNNs_Sym_ILPs), [PDHG-Net](https://github.com/NetSysOpt/PDHG-Net), and [Pearl-PE](https://github.com/ehejin/Pearl-PE).
