@@ -1,10 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import make_interp_spline
+import argparse
 
 
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-p","--problem", type=str, help="identification of problem", default="pagerank")
+args = parser.parse_args()
 
 
 
@@ -42,39 +46,53 @@ def plot_smooth(x,y,sm=500,title=''):
 
 
 maps = {}
-f = open('../logs/train_log_color.log','r')
+f = open(f'../logs/{args.problem}/train_log_color.log','r')
 maps['color'] = read_file(f)
 f.close()
 
-f = open('../logs/train_log_uniform.log','r')
+f = open(f'../logs/{args.problem}/train_log_uniform.log','r')
 maps['uniform'] = read_file(f)
 f.close()
 
-f = open('../logs/train_log_vanilla.log','r')
+f = open(f'../logs/{args.problem}/train_log_vanilla.log','r')
 maps['vanilla'] = read_file(f)
 f.close()
 
 plot_smooth(maps['color'][-1],maps['color'][7],sm=500,title='Coloring')
-plot_smooth(maps['uniform'][-1],maps['uniform'][7],sm=500,title='uniform')
+plot_smooth(maps['uniform'][-1],maps['uniform'][7],sm=500,title='Uniform')
 plot_smooth(maps['vanilla'][-1],maps['vanilla'][7],sm=500,title='vanilla')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.yscale('log')
-plt.savefig('../figs/valid.png')
+plt.savefig(f'../figs/valid_{args.problem}.png')
 
 plt.clf()
 plot_smooth(maps['color'][-1],maps['color'][3],sm=500,title='Coloring')
-plot_smooth(maps['uniform'][-1],maps['uniform'][3],sm=500,title='uniform')
+plot_smooth(maps['uniform'][-1],maps['uniform'][3],sm=500,title='Uniform')
 plot_smooth(maps['vanilla'][-1],maps['vanilla'][3],sm=500,title='vanilla')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.yscale('log')
-plt.savefig('../figs/train.png')
+plt.savefig(f'../figs/train_{args.problem}.png')
 
 
 for k in maps:
     print(f'{k} best train loss:  {maps[k][3][-1]}')
 for k in maps:
     print(f'{k} best val loss:  {maps[k][7][-1]}')
+
+import os
+
+for fnm in os.listdir(f'../logs/{args.problem}/test'):
+    f = open(f'../logs/{args.problem}/test/{fnm}','r')
+    s = ""
+    for line in f:
+        s = line
+    s=s.replace('\n','').split(' ')
+    tag = s[0]
+    pl = float(s[3].split(':')[-1])
+    dl = float(s[8].split(':')[-1])
+    print(tag,pl+dl)
+    f.close()

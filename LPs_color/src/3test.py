@@ -14,10 +14,10 @@ from LP_coloring import *
 
 
 def handle_color_emb(fnm, d, v, c, edge_index):
-    k=2#
+    k=2#k染色层
     #toy graph
     num_v = v.shape[0]
-    num_c = c.shape[0]
+    num_c = c.shape[0] #variable的数量，constraints的数量
 
     col_L, col_R = global_khop_coloring(edge_index, num_v, num_c, k=k)
     color_v = []
@@ -38,7 +38,7 @@ def handle_color_emb(fnm, d, v, c, edge_index):
     c = torch.cat((c, color_cf), dim = 1)
     return v, c
 
-def handle_gauss_emb(fnm, e_size, v, c, edge_index):
+def handle_uniform_emb(fnm, e_size, v, c, edge_index):
 
     dim = e_size
     device = v.device
@@ -57,30 +57,6 @@ def handle_zero_emb(fnm, e_size, v, c, edge_index):
     c = torch.cat((c, torch.zeros(c.shape[0], e_size, dtype=c.dtype, device=c.device)), dim = 1)
     return v,c
 
-def handle_sinusoidal_emb(fnm, e_size, v, c, edge_index):
-
-    dim = e_size
-    device = v.device
-    dtype = v.dtype
-    # -- v
-    eps = 0.5
-    v_add = torch.zeros(v.shape[0], dim, dtype=dtype)
-    for i in range(v.shape[0]):
-        for j in range(dim // 2):
-            v_add[i, 2 * j] = math.sin(eps * i / math.pow(10000, 2 * j / dim))
-            v_add[i, 2 * j + 1] = math.cos(eps * i / math.pow(10000, 2 * j / dim))
-    v_add = v_add.to(device)
-    v = torch.cat((v, v_add), dim = 1)
-    # -- c
-    c_add = torch.zeros(c.shape[0], dim, dtype=dtype)
-    for i in range(c.shape[0]):
-        for j in range(dim // 2):
-            c_add[i, 2 * j] = math.sin(eps * i / math.pow(10000, 2 * j / dim))
-            c_add[i, 2 * j + 1] = math.cos(eps * i / math.pow(10000, 2 * j / dim))
-    c_add = c_add.to(device)
-    c = torch.cat((c, c_add), dim = 1)
-    return v,c
-
 
 
 
@@ -89,17 +65,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-b","--embsize", type=int, help="n dimension of embeding", default=32)
     parser.add_argument("-d","--hidden", type=str, help="dimensions of hiden layers, splitted by ,", default="64,64,64")
+    parser.add_argument("-p","--problem", type=str, help="identification of problem", default="pagerank")
     args = parser.parse_args()
 
     # file locations
-    flist = os.listdir('../data/test')
+    flist = os.listdir(f'../data/{args.problem}/test')
     # obtain sizes
-    f = gzip.open(f'../data/test/{flist[0]}','rb')
+    f = gzip.open(f'../data/{args.problem}/test/{flist[0]}','rb')
     pkl =  pickle.load(f)
     x_size = pkl['var_feat'].shape[-1] + args.embsize
     y_size = pkl['con_feat'].shape[-1] + args.embsize
     f.close()
-    for ident in ['color','sin','gauss','vanilla']:
+    for ident in ['color','uniform','vanilla']:
+    # for ident in ['color']:
         # set up env
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         feat_sizes = args.hidden.split(',')
@@ -110,15 +88,13 @@ if __name__ == '__main__':
         model_name = f'best_{ident}.mdl'
         # handle embedding function
         emb_func = handle_zero_emb
-        if ident == 'sin':
-            emb_func = handle_sinusoidal_emb
         if ident == 'color':
             emb_func = handle_color_emb
-        if ident == 'gauss':
-            emb_func = handle_gauss_emb
+        if ident == 'uniform':
+            emb_func = handle_uniform_emb
         # check if will start from ckp
-        if os.path.exists(f"../model/{model_name}"):
-            checkpoint = torch.load(f"../model/{model_name}")
+        if os.path.exists(f"../model/{args.problem}/{model_name}"):
+            checkpoint = torch.load(f"../model/{args.problem}/{model_name}")
             mdl.load_state_dict(checkpoint['model'])
             if 'nepoch' in checkpoint:
                 last_epoch=checkpoint['nepoch']
@@ -130,13 +106,15 @@ if __name__ == '__main__':
             quit()
 
         # test
-        flog = open(f'../logs/test/{ident}.log','w')
+        if not os.path.isdir(f'../logs/{args.problem}/test'):
+            os.mkdir(f'../logs/{args.problem}/test')
+        flog = open(f'../logs/{args.problem}/test/{ident}.log','w')
         avg_loss_x=0.0
         avg_loss_y=0.0
         with alive_bar(len(flist),  title=f'Testing {ident}') as bar:
             for fnm in flist:
                 # train
-                f = gzip.open(f'../data/test/{fnm}','rb')
+                f = gzip.open(f'../data/{args.problem}/test/{fnm}','rb')
                 pkl =  pickle.load(f)
                 A_idx = pkl['edge_index']
                 A_val = pkl['edge_weight']
@@ -151,7 +129,7 @@ if __name__ == '__main__':
                 x = torch.as_tensor(x,dtype=torch.float32).to(device)
                 y = torch.as_tensor(y,dtype=torch.float32).to(device)
                 # embedding
-                x,y = emb_func(f'../data/test/{fnm}', args.embsize, x, y, A_idx)
+                x,y = emb_func(f'../data/{args.problem}/test/{fnm}', args.embsize, x, y, A_idx)
                 b = torch.as_tensor(b,dtype=torch.float32).to(device)
                 c = torch.as_tensor(c,dtype=torch.float32).to(device)
                 x_gt = torch.as_tensor(sol,dtype=torch.float32).to(device)
@@ -160,6 +138,8 @@ if __name__ == '__main__':
 
                 #  apply gradient 
                 x,y = mdl(x,y,A,AT,c,b)
+
+
                 loss_x = loss_func(x, x_gt)
                 loss_y = loss_func(y, y_gt) 
                 loss = loss_x + loss_y

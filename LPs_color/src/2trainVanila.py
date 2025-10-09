@@ -16,24 +16,42 @@ from LP_coloring import *
 
 sin_history = {}
 
+def color_permute(dim, v, c, ncolor):
+    tarv = v
+    tarc = c
+
+    keys = list(range(ncolor))
+    values = keys[:]  
+    random.shuffle(values)
+    mapping = dict(zip(keys, values))
+    v = torch.tensor(np.vectorize(mapping.get)(v))
+    c = torch.tensor(np.vectorize(mapping.get)(c))
+    return v,c
+
+
 def handle_color_emb(fnm, d, v, c, edge_index):
     if fnm in sin_history:
-        return sin_history[fnm][0],sin_history[fnm][1]
-    k=2#k染色层
-    #toy graph
-    num_v = v.shape[0]
-    num_c = c.shape[0] #variable的数量，constraints的数量
+        col_L = sin_history[fnm][0]
+        col_R = sin_history[fnm][1]
+    else:
+        k=2#k染色层
+        #toy graph
+        num_v = v.shape[0]
+        num_c = c.shape[0] #variable的数量，constraints的数量
 
-    col_L, col_R = global_khop_coloring(edge_index, num_v, num_c, k=k)
+        col_L, col_R = global_khop_coloring(edge_index, num_v, num_c, k=k)
+        sin_history[fnm] = [None,None]
+        sin_history[fnm][0] = col_L
+        sin_history[fnm][1] = col_R
+    # permute 
+    ccc = torch.cat([col_L, col_R])
+    num_classes = ccc.unique().numel()
+    col_L, col_R = color_permute(d, col_L, col_R, ncolor=num_classes)
     color_v = []
     color_c = []
-    # ccc = torch.cat([col_L, col_R])
-    # num_classes = ccc.unique().numel()
     for _ in range(d):
-        v_permuted = col_L
-        c_permuted = col_R
-        color_v.append(v_permuted)
-        color_c.append(c_permuted)
+        color_v.append(col_L)
+        color_c.append(col_R)
     color_vf = torch.stack(color_v, dim=0).t()
     color_cf = torch.stack(color_c, dim=0).t()
 
@@ -42,9 +60,6 @@ def handle_color_emb(fnm, d, v, c, edge_index):
     v = torch.cat((v, color_vf), dim = 1)
     c = torch.cat((c, color_cf), dim = 1)
 
-    sin_history[fnm] = []
-    sin_history[fnm].append(v)
-    sin_history[fnm].append(c)
     return v, c
 
 def handle_uniform_emb(fnm, e_size, v, c, edge_index):
@@ -71,22 +86,21 @@ def handle_zero_emb(fnm, e_size, v, c, edge_index):
     c = torch.cat((c, torch.zeros(c.shape[0], e_size, dtype=c.dtype, device=c.device)), dim = 1)
     return v,c
 
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-e","--maxepoch", type=int, help="number of max epoch", default=5000)
     parser.add_argument("-b","--embsize", type=int, help="n dimension of embeding", default=32)
     parser.add_argument("-d","--hidden", type=str, help="dimensions of hiden layers, splitted by ,", default="64,64,64")
     parser.add_argument("-i","--ident", type=str, help="identification of model", default="vanilla")
+    parser.add_argument("-p","--problem", type=str, help="identification of problem", default="pagerank")
     parser.add_argument("--contin",action="store_true",help="Enable continue from last checkpoint")
     args = parser.parse_args()
 
     # file locations
-    flist_train = os.listdir('../data/train')
-    flist_valid = os.listdir('../data/valid')
+    flist_train = os.listdir(f'../data/{args.problem}/train')
+    flist_valid = os.listdir(f'../data/{args.problem}/valid')
     # obtain sizes
-    f = gzip.open(f'../data/train/{flist_train[0]}','rb')
+    f = gzip.open(f'../data/{args.problem}/train/{flist_train[0]}','rb')
     pkl =  pickle.load(f)
     x_size = pkl['var_feat'].shape[-1] + args.embsize
     y_size = pkl['con_feat'].shape[-1] + args.embsize
@@ -104,38 +118,43 @@ if __name__ == '__main__':
     model_name = f'best_{args.ident}.mdl'
     # handle embedding function
     emb_func = handle_zero_emb
-
     if args.ident == 'color':
         emb_func = handle_color_emb
-        if args.contin and os.path.exists(f'../pkl/hist_{args.ident}.pkl'):
-            ff = gzip.open(f'../pkl/hist_{args.ident}.pkl','rb')
+        if args.contin and os.path.exists(f'../pkl/{args.problem}/hist_{args.ident}.pkl'):
+            ff = gzip.open(f'../pkl/{args.problem}/hist_{args.ident}.pkl','rb')
             sin_history = pickle.load(ff)
             ff.close()
             print(f'Sin history loaded')
     if args.ident == 'uniform':
         emb_func = handle_uniform_emb
-        if args.contin and os.path.exists(f'../pkl/hist_{args.ident}.pkl'):
-            ff = gzip.open(f'../pkl/hist_{args.ident}.pkl','rb')
+        if args.contin and os.path.exists(f'../pkl/{args.problem}/hist_{args.ident}.pkl'):
+            ff = gzip.open(f'../pkl/{args.problem}/hist_{args.ident}.pkl','rb')
             sin_history = pickle.load(ff)
             ff.close()
             print(f'Sin history loaded')
 
 
     # check if will start from ckp
-    if args.contin and os.path.exists(f"../model/{model_name}"):
-        checkpoint = torch.load(f"../model/{model_name}")
+    
+    if args.contin and os.path.exists(f"../model/{args.problem}/{model_name}"):
+        checkpoint = torch.load(f"../model/{args.problem}/{model_name}")
         mdl.load_state_dict(checkpoint['model'])
         if 'nepoch' in checkpoint:
             last_epoch=checkpoint['nepoch']
         best_loss=checkpoint['best_loss']
         print(f'Last best val loss gen:  {best_loss}')
         print('Model Loaded')
-    
+    if not os.path.exists(f"../model/{args.problem}"):
+        os.makedirs(f"../model/{args.problem}")
+    if not os.path.exists(f'../pkl/{args.problem}'):
+        os.makedirs(f'../pkl/{args.problem}')
+    if not os.path.exists(f'../logs/{args.problem}'):
+        os.makedirs(f'../logs/{args.problem}')
     # train
     log_mode = 'w'
     if args.contin:
         log_mode = 'a'
-    flog = open(f'../logs/train_log_{args.ident}.log',log_mode)
+    flog = open(f'../logs/{args.problem}/train_log_{args.ident}.log',log_mode)
     updated_hist = False
     for epoch in range(max_epoch):
         avg_loss_x=0.0
@@ -144,7 +163,7 @@ if __name__ == '__main__':
         with alive_bar(len(flist_train),  title='Training') as bar:
             for fnm in flist_train:
                 # train
-                f = gzip.open(f'../data/train/{fnm}','rb')
+                f = gzip.open(f'../data/{args.problem}/train/{fnm}','rb')
                 pkl =  pickle.load(f)
                 A_idx = pkl['edge_index']
                 A_val = pkl['edge_weight']
@@ -159,7 +178,7 @@ if __name__ == '__main__':
                 x = torch.as_tensor(x,dtype=torch.float32).to(device)
                 y = torch.as_tensor(y,dtype=torch.float32).to(device)
                 # embedding
-                x,y = emb_func(f'../data/train/{fnm}', args.embsize, x, y, A_idx)
+                x,y = emb_func(f'../data/{args.problem}/train/{fnm}', args.embsize, x, y, A_idx)
                 b = torch.as_tensor(b,dtype=torch.float32).to(device)
                 c = torch.as_tensor(c,dtype=torch.float32).to(device)
                 x_gt = torch.as_tensor(sol,dtype=torch.float32).to(device)
@@ -191,7 +210,7 @@ if __name__ == '__main__':
             for fnm in flist_valid:
                 # valid
                 #  reading
-                f = gzip.open(f'../data/valid/{fnm}','rb')
+                f = gzip.open(f'../data/{args.problem}/valid/{fnm}','rb')
                 pkl =  pickle.load(f)
                 A_idx = pkl['edge_index']
                 A_val = pkl['edge_weight']
@@ -206,7 +225,7 @@ if __name__ == '__main__':
                 x = torch.as_tensor(x,dtype=torch.float32).to(device)
                 y = torch.as_tensor(y,dtype=torch.float32).to(device)
                 # embedding
-                x,y = emb_func(f'../data/valid/{fnm}',args.embsize, x, y, A_idx)
+                x,y = emb_func(f'../data/{args.problem}/valid/{fnm}',args.embsize, x, y, A_idx)
                 b = torch.as_tensor(b,dtype=torch.float32).to(device)
                 c = torch.as_tensor(c,dtype=torch.float32).to(device)
                 x_gt = torch.as_tensor(sol,dtype=torch.float32).to(device)
@@ -226,16 +245,17 @@ if __name__ == '__main__':
         st = f'epoch{epoch}valid: {avg_loss_x} {avg_loss_y}\n'
         flog.write(st)
 
+
         if best_loss > avg_loss_x+avg_loss_y:
             best_loss = avg_loss_x+avg_loss_y
             state={'model':mdl.state_dict(),'optimizer':optimizer.state_dict(),'best_loss':best_loss,'nepoch':epoch}
-            torch.save(state,f"../model/{model_name}")
+            torch.save(state,f"../model/{args.problem}/{model_name}")
             print(f'Saving new best model with valid loss: {best_loss}')
 
         flog.flush()
 
         if not updated_hist:
-            ff = gzip.open(f'../pkl/hist_{args.ident}.pkl','wb')
+            ff = gzip.open(f'../pkl/{args.problem}/hist_{args.ident}.pkl','wb')
             pickle.dump(sin_history, ff)
             ff.close()
             updated_hist = True

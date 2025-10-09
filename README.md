@@ -7,7 +7,7 @@ Feature Augmentation of GNNs for ILPs: Local Uniqueness Suffices [https://arxiv.
 We provide implementations and scripts for three tasks/datasets:
 
 1. **ILPs**, 2) **LPs**, and 3) **ZINC**.
-    
+  
     Each uses a slightly different environment and workflow, detailed below.
 ## Environment Setup
 We recommend creating separate environments for the ILP/LP tasks and the ZINC task.
@@ -51,7 +51,7 @@ pip install ogb==1.3.6
 ```
 
 ---
-    
+
 > Make sure the CUDA Toolkit version matches your installed PyTorch build.
 ## Data preparation
 
@@ -95,9 +95,15 @@ done
 **LPs:**
 
 ```
-python 2trainVanila.py --i color  
-python 2trainVanila.py --i uniform  
-python 2trainVanila.py 
+#WA
+python 2trainVanila.py --i color  -p lb
+python 2trainVanila.py --i uniform  p lb
+python 2trainVanila.py -i vanilla -p lb
+#pagerank
+python 2trainVanila.py --i color  -p pagerank
+python 2trainVanila.py --i uniform  p pagerank
+python 2trainVanila.py -i vanilla -p pagerank
+
 ```
 
 **ZINC**:

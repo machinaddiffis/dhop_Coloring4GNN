@@ -245,16 +245,16 @@ def train_data(train_num, num_nodes, degree, damping_factor, ident="Train"):
     model = generate_pagerank_mps_dataset(num_nodes, degree, damping_factor)
     data = getFeat(model, True)
 
-    fout = gzip.open(f'../data/{ident}/packingdata{train_num}.pkl','w')
+    fout = gzip.open(f'../data/pagerank/{ident}/packingdata{train_num}.pkl','w')
     pickle.dump(data,fout)
     fout.close()
 
 
 def gen_files(n_files, num_nodes, degree, damping_factor, nworker = 8):
-    if not os.path.isdir('../data/train'):
-        os.mkdir('../data/train')
-    if not os.path.isdir('../data/valid'):
-        os.mkdir('../data/valid')
+    if not os.path.isdir('../data/pagerank/train'):
+        os.mkdir('../data/pagerank/train')
+    if not os.path.isdir('../data/pagerank/valid'):
+        os.mkdir('../data/pagerank/valid')
     pool = multiprocessing.Pool(processes = nworker)
     for i in range(n_files[0]):
         pool.apply_async(train_data, args=(i, num_nodes, degree, damping_factor, "train"))
@@ -267,8 +267,8 @@ def gen_files(n_files, num_nodes, degree, damping_factor, nworker = 8):
 
     
 def gen_test(n_files, num_nodes, degree, damping_factor, nworker = 8):
-    if not os.path.isdir('../data/test'):
-        os.mkdir('../data/test')
+    if not os.path.isdir('../data/pagerank/test'):
+        os.mkdir('../data/pagerank/test')
     pool = multiprocessing.Pool(processes = nworker)
     for i in range(n_files[2]):
         pool.apply_async(train_data, args=(i, num_nodes, degree, damping_factor, "test"))
@@ -287,6 +287,8 @@ if __name__ == '__main__':
     parser.add_argument("-s","--ntest", type=int, help="number of test ins", default=10)
     args = parser.parse_args()
 
+    if not os.path.isdir('../data/pagerank'):
+        os.mkdir('../data/pagerank')
 
     num_nodes = args.nnodes
     degree = args.degree
@@ -294,6 +296,6 @@ if __name__ == '__main__':
     t1 = time.time()
     n_files = [args.ntrain,args.nvalid,args.ntest]
     gen_files(n_files, num_nodes, degree, damping_factor)
-    gen_test(n_files, num_nodes*5, degree, damping_factor)
+    gen_test(n_files, num_nodes*3, degree, damping_factor)
     t2 = time.time()
     print('Instance generation finished in',t2-t1,'s')
